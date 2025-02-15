@@ -1,2 +1,1 @@
-# 18comic-auto-checkin
- 禁漫自动签到
+"# 18comic-auto-checkin" 
