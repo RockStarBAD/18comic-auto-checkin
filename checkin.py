@@ -1,123 +1,97 @@
 import os
-import sys
-import re
-import requests
+import time
+from selenium import webdriver
+from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.common.by import By
 
-# 设置请求头（可根据需要调整）
-HEADERS = {
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
-    # Cookie 将在调用时动态添加
-}
+def login_with_cookie(driver, cookie_str):
+    """
+    使用提供的 Cookie 登录
+    """
+    driver.get("https://18comic.vip/")
+    time.sleep(3)
+    cookies = [item.strip() for item in cookie_str.split(';') if item.strip()]
+    for item in cookies:
+        if '=' in item:
+            name, value = item.split('=', 1)
+            cookie_dict = {
+                "name": name.strip(),
+                "value": value.strip(),
+                "domain": ".18comic.vip"  # 请根据实际情况调整域名
+            }
+            try:
+                driver.add_cookie(cookie_dict)
+            except Exception as e:
+                print(f"添加 Cookie {name} 时出错：", e)
+    driver.refresh()
+    time.sleep(3)
 
-def get_daily_id(cookie):
+def login_with_credentials(driver, username, password):
     """
-    访问主页获取签到所需的 daily_id
+    使用账号和密码登录（若遇验证码则可能需要手动介入）
     """
-    headers = HEADERS.copy()
-    headers["Cookie"] = cookie
-    url = "https://18comic.vip/"
+    driver.get("https://18comic.vip/login")
+    time.sleep(3)
     try:
-        resp = requests.get(url, headers=headers, timeout=10)
-        if resp.status_code == 200:
-            html = resp.text
-            # 假设页面中存在类似：data-dailyid="xxxx" 的属性
-            match = re.search(r'data-dailyid="([^"]+)"', html)
-            if match:
-                daily_id = match.group(1)
-                print("提取到 daily_id:", daily_id)
-                return daily_id
-            else:
-                print("未能从主页提取 daily_id，请检查页面结构是否发生变化")
-                return None
-        else:
-            print(f"获取主页失败，状态码：{resp.status_code}")
-            return None
+        username_field = driver.find_element(By.NAME, "username")
+        password_field = driver.find_element(By.NAME, "password")
+        
+        username_field.clear()
+        username_field.send_keys(username)
+        password_field.clear()
+        password_field.send_keys(password)
+        
+        login_button = driver.find_element(By.XPATH, "//input[@type='submit' or @value='登录']")
+        login_button.click()
     except Exception as e:
-        print("获取 daily_id 异常：", e)
-        return None
+        print("账号密码登录时发生错误：", e)
+    time.sleep(10)
 
-def daily_sign(cookie):
+def perform_checkin(driver):
     """
-    使用 Cookie 完成签到
+    执行签到操作
     """
-    daily_id = get_daily_id(cookie)
-    if not daily_id:
-        print("无法获取 daily_id，签到终止")
-        return
-
-    headers = HEADERS.copy()
-    headers["Cookie"] = cookie
-    sign_url = "https://18comic.vip/ajax/user_daily_sign"
-    # 部分签到接口可能需要传递 daily_id 参数
-    data = {
-        "daily_id": daily_id,
-        "oldStep": "1"
-    }
+    driver.get("https://18comic.vip/")
+    time.sleep(3)
     try:
-        resp = requests.post(sign_url, headers=headers, data=data, timeout=10)
-        resp.raise_for_status()
-        result = resp.json()
-        # 根据接口返回结果判断签到是否成功
-        if "成功" in result.get("msg", ""):
-            print("签到成功：", result.get("msg"))
-        else:
-            print("签到返回信息：", result)
+        sign_button = driver.find_element(By.XPATH, "//button[contains(text(), '签到')]")
+        sign_button.click()
+        print("签到操作成功提交。")
     except Exception as e:
-        print("签到请求异常：", e)
-
-def login_with_credentials(username, password):
-    """
-    尝试使用账号和密码登录（注意：18comic.vip 登录时可能要求验证码，此处无法自动处理验证码）
-    若登录成功，应返回登录后的 Cookie 字符串
-    """
-    login_url = "https://18comic.vip/login"
-    # 构造登录请求的参数（根据实际抓包信息调整）
-    data = {
-        "username": username,
-        "password": password,
-        "login_remember": "on",
-        "submit_login": ""  # 根据实际情况可能需要调整
-    }
-    headers = HEADERS.copy()
-    try:
-        resp = requests.post(login_url, headers=headers, data=data, timeout=10)
-        # 如果遇到验证码问题，可能返回 301 或 403 等状态码
-        if resp.status_code != 200:
-            print(f"登录请求失败，状态码：{resp.status_code}")
-            return None
-
-        # 登录后通常会在响应的 Cookie 中返回登录信息
-        if resp.cookies:
-            cookie = "; ".join([f"{c.name}={c.value}" for c in resp.cookies])
-            print("登录成功，获取到 Cookie")
-            return cookie
-        else:
-            print("登录后未获取到 Cookie，请检查是否需要验证码处理")
-            return None
-    except Exception as e:
-        print("登录异常：", e)
-        return None
+        print("签到操作未找到或执行时出错：", e)
 
 def main():
-    # 从环境变量中获取 Secrets
-    cookie = os.environ.get("COMIC_COOKIE")
-    username = os.environ.get("COMIC_USERNAME")
-    password = os.environ.get("COMIC_PASSWORD")
+    # 从环境变量中获取登录信息和自定义的 User-Agent
+    cookie = os.environ.get("COOKIE")
+    username = os.environ.get("USERNAME")
+    password = os.environ.get("PASSWORD")
+    user_agent = os.environ.get("USER_AGENT", 
+                                  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36")
     
-    if cookie:
-        print("使用提供的 Cookie 进行签到")
-        daily_sign(cookie)
-    elif username and password:
-        print("未检测到 Cookie，尝试使用用户名密码登录")
-        cookie = login_with_credentials(username, password)
+    # 配置 Selenium Chrome 驱动
+    chrome_options = Options()
+    # 可选：无头模式（如不需要可视化界面可启用）
+    # chrome_options.add_argument("--headless")
+    chrome_options.add_argument("--disable-blink-features=AutomationControlled")
+    chrome_options.add_argument(f"user-agent={user_agent}")
+    
+    driver = webdriver.Chrome(options=chrome_options)
+    
+    try:
         if cookie:
-            daily_sign(cookie)
+            print("使用提供的 Cookie 进行登录")
+            login_with_cookie(driver, cookie)
+        elif username and password:
+            print("使用账号密码登录")
+            login_with_credentials(driver, username, password)
         else:
-            print("账号密码登录失败，请检查是否存在验证码问题，建议手动获取 Cookie 后使用")
-            sys.exit(1)
-    else:
-        print("请在 Secrets 中配置 COMIC_COOKIE 或 COMIC_USERNAME/COMIC_PASSWORD")
-        sys.exit(1)
+            print("未提供有效的登录信息（COOKIE 或 USERNAME/PASSWORD）")
+            return
+        
+        perform_checkin(driver)
+    finally:
+        time.sleep(5)
+        driver.quit()
 
 if __name__ == "__main__":
     main()
