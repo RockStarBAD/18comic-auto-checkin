@@ -2,18 +2,19 @@ name: Daily Check-in
 
 on:
   schedule:
-    - cron: '0 0 * * *'  # 每天 UTC 0 点运行
+    - cron: '0 0 * * *'  # 每天 UTC 0 点触发
   workflow_dispatch:
 
 jobs:
   checkin:
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
-      - name: Set up Python
-        uses: actions/setup-python@v2
+      - name: Set up Python environment
+        uses: actions/setup-python@v4
         with:
           python-version: '3.x'
 
@@ -23,6 +24,7 @@ jobs:
           pip install selenium webdriver-manager
 
       - name: Run check-in script
+        working-directory: ${{ github.workspace }}   # 这里指定工作目录为仓库根目录
         env:
           USER_AGENT: ${{ secrets.USER_AGENT }}
           COOKIE: ${{ secrets.COOKIE }}
