@@ -5,6 +5,7 @@ from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.chrome.service import Service
 from webdriver_manager.chrome import ChromeDriverManager
 
 def login_with_cookie(driver, cookie_str):
@@ -38,7 +39,7 @@ def login_with_credentials(driver, username, password):
     driver.get("https://18comic.vip/login")
     time.sleep(3)
     try:
-        # 定位用户名和密码输入框（请根据实际页面的元素属性调整）
+        # 定位用户名和密码输入框，根据实际情况调整定位方式
         username_field = WebDriverWait(driver, 10).until(
             EC.presence_of_element_located((By.NAME, "username"))
         )
@@ -49,7 +50,7 @@ def login_with_credentials(driver, username, password):
         password_field.clear()
         password_field.send_keys(password)
         
-        # 定位并点击登录按钮
+        # 定位并点击登录按钮（根据实际页面调整 XPath）
         login_button = driver.find_element(By.XPATH, "//input[@type='submit' or @value='登录']")
         login_button.click()
     except Exception as e:
@@ -59,21 +60,21 @@ def login_with_credentials(driver, username, password):
 
 def perform_checkin(driver):
     """
-    进行每日签到操作：
-    1. 打开主页并点击“每日簽到”
-    2. 等待弹出模态框，点击模态框中的“簽到”按钮（模态框内还会有“關閉”按钮）
+    执行每日签到操作：
+    1. 点击“每日簽到”按钮
+    2. 等待弹出模态框后，在模态框中点击“簽到”按钮
     """
     driver.get("https://18comic.vip/")
     time.sleep(3)
     try:
-        # 点击“每日簽到”按钮
+        # 定位并点击“每日簽到”按钮（根据页面实际文字调整）
         daily_signin_trigger = WebDriverWait(driver, 10).until(
             EC.element_to_be_clickable((By.XPATH, "//*[contains(text(), '每日簽到')]"))
         )
         daily_signin_trigger.click()
         print("已点击‘每日簽到’按钮")
         
-        # 等待模态框出现，假设模态框中包含 class "modal"（请根据实际情况调整 XPath）
+        # 等待弹出模态框出现，然后定位模态框中的“簽到”按钮
         confirm_button = WebDriverWait(driver, 10).until(
             EC.element_to_be_clickable((By.XPATH, "//div[contains(@class, 'modal')]//button[contains(text(), '簽到')]"))
         )
@@ -83,7 +84,7 @@ def perform_checkin(driver):
         print("签到操作未找到或执行时出错：", e)
 
 def main():
-    # 从环境变量中获取配置（这些环境变量在 GitHub Secrets 中设置，名称保持不变）
+    # 从环境变量中获取配置（Secrets 中设置的名称保持不变）
     cookie = os.environ.get("COOKIE")
     username = os.environ.get("USERNAME")
     password = os.environ.get("PASSWORD")
@@ -92,14 +93,15 @@ def main():
     
     # 配置 Chrome 浏览器选项
     chrome_options = Options()
-    # 如果需要无头模式可以取消下面注释
+    # 如果希望使用无头模式可取消下一行注释
     # chrome_options.add_argument("--headless")
     chrome_options.add_argument("--disable-blink-features=AutomationControlled")
     chrome_options.add_argument(f"user-agent={user_agent}")
-    # 指定一个独一无二的用户数据目录，防止因目录冲突导致启动错误
+    # 指定一个唯一的用户数据目录，避免与其他进程冲突
     chrome_options.add_argument("--user-data-dir=/tmp/chrome-profile")
     
-    driver = webdriver.Chrome(ChromeDriverManager().install(), options=chrome_options)
+    # 正确初始化 ChromeDriver（使用 Service 对象）
+    driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=chrome_options)
     
     try:
         if cookie:
