@@ -16,7 +16,7 @@ def login_with_cookie(driver, cookie_str):
     driver.get("https://18comic.vip/")
     time.sleep(3)
     
-    # 解析 Cookie 字符串，格式："key1=value1; key2=value2; ..."
+    # 解析 Cookie 字符串，格式为 "key1=value1; key2=value2; ..."
     cookies = [item.strip() for item in cookie_str.split(';') if item.strip()]
     for item in cookies:
         if '=' in item:
@@ -24,7 +24,8 @@ def login_with_cookie(driver, cookie_str):
             cookie_dict = {
                 "name": name.strip(),
                 "value": value.strip(),
-                "domain": ".18comic.vip"  # 请根据实际情况调整
+                # 根据实际情况设置域名（通常为 ".18comic.vip"）
+                "domain": ".18comic.vip"
             }
             try:
                 driver.add_cookie(cookie_dict)
@@ -35,7 +36,7 @@ def login_with_cookie(driver, cookie_str):
 
 def login_with_credentials(driver, username, password):
     """
-    使用账号和密码登录（若遇验证码可能需要手动处理）
+    使用账号和密码登录（登录时若遇验证码则可能需要手动处理）
     """
     driver.get("https://18comic.vip/login")
     time.sleep(3)
@@ -48,55 +49,65 @@ def login_with_credentials(driver, username, password):
         password_field.clear()
         password_field.send_keys(password)
         
+        # 定位登录按钮（请根据实际页面调整XPath）
         login_button = driver.find_element(By.XPATH, "//input[@type='submit' or @value='登录']")
         login_button.click()
     except Exception as e:
         print("账号密码登录时发生错误：", e)
+    # 等待登录过程完成（若有验证码，此处可能需要手动介入）
     time.sleep(10)
 
 def perform_checkin(driver):
     """
-    签到逻辑：
-      1. 访问首页并点击【每日簽到】按钮；
-      2. 等待签到弹窗出现，在弹窗中点击【簽到】按钮完成签到。
+    签到逻辑修改：
+    1. 在首页点击“每日簽到”按钮；
+    2. 等待弹出签到弹窗；
+    3. 在弹窗中点击“簽到”按钮（排除“關閉”按钮）。
     """
     driver.get("https://18comic.vip/")
     time.sleep(3)
+    
     try:
-        daily_checkin_btn = driver.find_element(By.XPATH, "//*[contains(text(), '每日簽到')]")
-        daily_checkin_btn.click()
-        print("成功点击【每日簽到】按钮。")
+        # 等待并点击“每日簽到”按钮
+        daily_signin_button = WebDriverWait(driver, 10).until(
+            EC.element_to_be_clickable((By.XPATH, "//*[contains(text(), '每日簽到')]"))
+        )
+        daily_signin_button.click()
+        print("已点击【每日簽到】按钮")
     except Exception as e:
-        print("未找到或无法点击【每日簽到】按钮：", e)
+        print("未能找到每日簽到按钮：", e)
         return
 
-    # 等待弹窗出现，并点击弹窗中的【簽到】按钮
+    # 等待签到弹窗出现
     try:
-        checkin_btn = WebDriverWait(driver, 10).until(
-            EC.visibility_of_element_located((By.XPATH, "//button[contains(text(), '簽到')]"))
+        # 等待弹窗中的“簽到”按钮变为可点击状态（确保排除“每日簽到”的重复元素）
+        checkin_button = WebDriverWait(driver, 10).until(
+            EC.element_to_be_clickable((By.XPATH, "//button[contains(text(), '簽到') and not(contains(text(), '每日簽到'))]"))
         )
-        checkin_btn.click()
-        print("成功点击弹窗中的【簽到】按钮。")
+        checkin_button.click()
+        print("已点击弹窗中的【簽到】按钮")
     except Exception as e:
-        print("在弹窗中查找或点击【簽到】按钮失败：", e)
+        print("签到弹窗中未找到或点击【簽到】按钮出错：", e)
 
 def main():
-    # 从环境变量中获取 Secrets 配置
+    # 从环境变量中获取 Secrets（无需改变名称）
     cookie = os.environ.get("COOKIE")
     username = os.environ.get("USERNAME")
     password = os.environ.get("PASSWORD")
     user_agent = os.environ.get("USER_AGENT", 
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36")
-
+    
+    # 配置 Selenium Chrome 驱动
     chrome_options = Options()
-    # 若需要无头模式，可取消下一行注释
+    # 如果需要无头模式，可取消下面注释
     # chrome_options.add_argument("--headless")
     chrome_options.add_argument("--disable-blink-features=AutomationControlled")
     chrome_options.add_argument(f"user-agent={user_agent}")
+    # 指定一个唯一的用户数据目录，避免冲突
     chrome_options.add_argument("--user-data-dir=/tmp/chrome-profile")
     
     driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=chrome_options)
-
+    
     try:
         if cookie:
             print("使用提供的 COOKIE 进行登录")
@@ -107,7 +118,7 @@ def main():
         else:
             print("未提供有效的登录信息（COOKIE 或 USERNAME/PASSWORD）")
             return
-
+        
         perform_checkin(driver)
     finally:
         time.sleep(5)
