@@ -2,7 +2,7 @@ name: Daily Check-in
 
 on:
   schedule:
-    - cron: '0 0 * * *'  # 每天 UTC 0 点运行
+    - cron: '0 0 * * *'  # 每天 UTC 时间 0 点运行
   workflow_dispatch:
 
 jobs:
@@ -11,8 +11,6 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v2
-        with:
-          path: "."   # 将仓库直接克隆到工作目录根目录
 
       - name: Set up Python
         uses: actions/setup-python@v2
@@ -30,4 +28,5 @@ jobs:
           COOKIE: ${{ secrets.COOKIE }}
           USERNAME: ${{ secrets.USERNAME }}
           PASSWORD: ${{ secrets.PASSWORD }}
-        run: python checkin.py
+        run: |
+          python checkin.py
