@@ -22,11 +22,16 @@ jobs:
           python -m pip install --upgrade pip
           pip install selenium webdriver-manager
 
-      - name: Run check-in script
+      - name: Run 18Comic check-in script
         env:
           USER_AGENT: ${{ secrets.USER_AGENT }}
           COOKIE: ${{ secrets.COOKIE }}
           USERNAME: ${{ secrets.USERNAME }}
           PASSWORD: ${{ secrets.PASSWORD }}
-        run: |
-          python checkin.py
+        run: python checkin.py
+
+      - name: Run xsijishe check-in script
+        env:
+          USER_AGENT: ${{ secrets.USER_AGENT }}
+          XSIJISHE_COOKIE: ${{ secrets.XSIJISHE_COOKIE }}
+        run: python xsijishe_checkin.py
